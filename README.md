@@ -15,4 +15,9 @@ Greenlist is a JSON API built with Go for retrieving and managing information ab
 ## API Routes
 | Method | Route | Description |
 | ------ | ----- | ----------- |
-| GET    | /api/healthcheck | Show application health and version information |
+| GET    | /v1/healthcheck | Show application health and version information |
+| GET    | /v1/movies      | Show the details of all movies |
+| POST   | /v1/movies      | Create a new movie |
+| GET    | /v1/movies/:id  | Show the details of a specific movie |
+| PUT    | /v1/movies/:id  | Update the details of a specific movie |
+| DELETE | /v1/movies/:id  | Delete a specific movie |
