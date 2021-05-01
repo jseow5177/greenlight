@@ -58,7 +58,7 @@ func main() {
 	// created above as the handler.
 	srv := &http.Server{
 		Addr: fmt.Sprintf(":%d", cfg.port),
-		Handler: mux,
+		Handler: app.routes(),
 		// Go enables persistent HTTP connections by default to reduce latency.
 		// By default, Go closes persistent connections after 3 minutes.
 		// We can reduce this default with the IdleTimeout setting.
