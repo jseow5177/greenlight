@@ -1,8 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
+	"time"
+
+	"github.com/jseow5177/greenlight/internal/data"
 )
 
 // Add a createMovieHandler for "POST /v1/movies"
@@ -19,6 +21,20 @@ func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Simple response for now
-	fmt.Fprintf(w, "Show the details of the movie %d\n", id)
+	movie := &data.Movie{
+		ID: id,
+		CreatedAt: time.Now(),
+		Title: "Casablance",
+		Runtime: 102,
+		Genres: []string{"drama", "romance", "war"},
+		Version: 1,
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"movie": movie}, nil)
+
+	if err != nil {
+		app.logger.Println(err)
+		http.Error(w, "The server encountered an error and could not process your request", http.StatusInternalServerError)
+		return
+	}
 }
