@@ -12,6 +12,7 @@ Greenlist is a JSON API built with Go for retrieving and managing information ab
 - `remote` - Contain the configuration files and setup scripts for production server.
 - `go.mod` file - Declare project dependencies, versions and module path.
 - `Makefile` - Contain recipes for automating common administrative tasks (Go code auditing, building binaries and execute database migrations).
+- `bash` - Contain bash scripts that execute curl commands to test handlers
 
 ## API Routes
 | Method | Route | Description |
