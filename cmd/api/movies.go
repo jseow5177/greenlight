@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -9,7 +10,26 @@ import (
 
 // Add a createMovieHandler for "POST /v1/movies"
 func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Create movie..."))
+	// Declare an anonymous struct to hold the information that we expect to be in the HTTP request body.
+	// This struct will be our *target decode destination*.
+	// The struct fields must start with a capital letter so that they are exported.
+	var input struct {
+		Title string `json:"title"`
+		Year int32 `json:"year"`
+		Runtime int32 `json:"runtime"`
+		Genres []string `json:"genres"`
+	}
+
+	// Initialize a new json.Decoder instance which reads from the request body.
+	// Use the Decode() method to decode the body contents into the input struct.
+	// A pointer to the input struct is passed into Decode().
+	err := app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+	
+	fmt.Fprintf(w, "%+v\n", input)
 }
 
 // Add a showMovieHandler for "GET /v1/movies/:id"
