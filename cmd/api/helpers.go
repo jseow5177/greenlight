@@ -3,11 +3,16 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/julienschmidt/httprouter"
 )
+
+const RequestBodyTooLargeMessage = "http: request body too large"
 
 // Define an envelope type
 type envelope map[string]interface{}
@@ -50,6 +55,82 @@ func (app * application) writeJSON(w http.ResponseWriter, status int, data envel
 	// Write status code.
 	w.WriteHeader(status)
 	w.Write(js)
+
+	return nil
+}
+
+func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst interface{}) error {
+	// Use http.MaxBytesReader() to limit the size of request body to 1MB.
+	maxBytes := 1_048_576
+	r.Body = http.MaxBytesReader(w, r.Body, int64(maxBytes))
+
+	// Initialize the json.Decoder, and call the DisallowUnknownFields() method on it before
+	// decoding. This means that if the JSON from the client includes any field that cannot
+	// be mapped to the target destination, the decoder will return an error instead of just
+	// ignoring the field.
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+
+	// Decode the request body into the target destination
+	err := dec.Decode(dst)
+	if err != nil {
+		var syntaxError *json.SyntaxError
+		var unmarshalTypeError *json.UnmarshalTypeError
+		var invalidUnmarshalError *json.InvalidUnmarshalError
+
+		switch {
+		// Catch syntax error with JSON being decoded.
+		case errors.As(err, &syntaxError):
+			return fmt.Errorf("body contains badly-formed JSON (at character %d)", syntaxError.Offset)
+		
+		// In some cases, Decode() may return an io.ErrUnexpectedEOF error for syntax errors in JSON.
+		case errors.Is(err, io.ErrUnexpectedEOF):
+			return errors.New("body contains-badly formed JSON")
+		
+		// A json.UnmarshalTypeError error is returned when the JSON value is the wrong type for the target destination.
+		// If the error relates to a specific field, we include that in the error message.
+		case errors.As(err, &unmarshalTypeError):
+			if unmarshalTypeError.Field != "" {
+				return fmt.Errorf("body contains incorrect JSON type for field %q", unmarshalTypeError.Field)
+			}
+			return fmt.Errorf("body contains incorrect JSON type (at character %d)", unmarshalTypeError.Offset)
+		
+		// A json.InvalidUnmarshalError error will be returned if we pass a non-nil pointer to Decode().
+		// This is a problem with the application code, not the JSON itself.
+		// We catch this error and panic.
+		case errors.As(err, &invalidUnmarshalError):
+			panic(err)
+		
+		// An io.EOF error is returned if the request body is empty.
+		case errors.Is(err, io.EOF):
+			return errors.New("body must not be empty")
+
+		// If the JSON contains a field that cannot be mapped to the target destination then Decode()
+		// will now return an error message in the format "json: unknown field <name>".
+		// We check for this, extract the field name from the error, and interpolate it into our custom error message.
+		// There is an open issue to turn this into a distinct error type: https://github.com/golang/go/issues/29035
+		case strings.HasPrefix(err.Error(), "json: unknown field "):
+			fieldName := strings.TrimPrefix(err.Error(), "json: unknown field ")
+			return fmt.Errorf("body contains unknown key %s", fieldName)
+		
+		// If the request body exceeds 1MB in size, the decode will now fail with the error
+		// "http: request body too large". Currently, the error checking is done with string comparison.
+		// There is an open issue to turn it into a distinct error type: https://github.com/golang/go/issues/30715.
+		case err.Error() == RequestBodyTooLargeMessage:
+			return fmt.Errorf("body must not be larger than %d bytes", maxBytes)
+
+		default:
+			return err
+		}
+	}
+
+	// Call Decode() again, using a pointer to an empty anonymous struct as the destination.
+	// It should return an io.EOF error if the request body contains a single JSON value.
+	// If there is anything else, there must be additional data (another JSON, dirty value, etc) in the request body.
+	err = dec.Decode(&struct{}{})
+	if err != io.EOF {
+		return errors.New("body must contain a single JSON value")
+	}
 
 	return nil
 }
