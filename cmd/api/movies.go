@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jseow5177/greenlight/internal/data"
+	"github.com/jseow5177/greenlight/internal/validator"
 )
 
 // Add a createMovieHandler for "POST /v1/movies"
@@ -28,7 +29,24 @@ func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Reques
 		app.badRequestResponse(w, r, err)
 		return
 	}
-	
+
+	// Copy the values from the input struct to the new Movie struct
+	movie := &data.Movie{
+		Title: input.Title,
+		Year: input.Year,
+		Runtime: input.Runtime,
+		Genres: input.Genres,
+	}
+
+	// Initialize a new Validator instance
+	v := validator.New()
+
+	// Use the Valid() method to see if any of the checks failed.
+	if data.ValidateMovie(v, movie); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
 	fmt.Fprintf(w, "%+v\n", input)
 }
 
