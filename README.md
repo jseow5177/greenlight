@@ -3,6 +3,8 @@
 ## Introduction
 Greenlist is a JSON API built with Go for retrieving and managing information about movies.
 
+This project is from the book <a href="https://lets-go-further.alexedwards.net/" target="_blank">Let's Go Further!</a> by Alex Edwards.
+
 ## Project Structure
 - `bin` - Contain compiled application binaries, ready for deployment to a production server.
 - `cmd/api` - Contain application-specifc code for the Greenlight API application.
@@ -23,3 +25,18 @@ Greenlist is a JSON API built with Go for retrieving and managing information ab
 | GET    | /v1/movies/:id  | Show the details of a specific movie |
 | PUT    | /v1/movies/:id  | Update the details of a specific movie |
 | DELETE | /v1/movies/:id  | Delete a specific movie |
+
+## Database Pool Configuration
+
+Go's `sql.DB` connection pool contains two types of connections - 'in-use' and 'idle' connections.
+
+An 'in-use' connection is one where it is used to perform a database task such as performing a query. Once the task is done, the connection will be marked as 'idle'.
+
+We can configure the behavior of Go's connection pool with the following four settings.
+
+| Database Setting | Detail | Default Value | Application Setting |
+| ------ | ------ | ------ | ----- | 
+| MaxIdleConns | The maximum number of idle connections in the pool. | 2 |  25 | 
+| MaxOpenConns | The maximum number of open connections (in-use + idle) in the pool. | Unlimited | 25 |
+| ConnMaxLifetime | The maximum length of time that a connection can be reused for. | Unlimited | Default |
+| ConnMaxIdleTime | The maximum length of time that a connection can be idle. | Unlimited | 15 mins | 
