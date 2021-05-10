@@ -1,12 +1,17 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 )
 
 // Declare a string containing the application version number.
@@ -19,6 +24,12 @@ const version = "1.0.0"
 type config struct {
 	port int
 	env string
+	db struct {
+		dsn string
+		maxOpenConns int
+		maxIdleConns int
+		maxIdleTime string
+	}
 }
 
 // Define an application struct to hold the dependencies for HTTP handlers, helpers,
@@ -29,19 +40,43 @@ type application struct {
 }
 
 func main() {
+	// Load environment variables
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
+	psqlPass := os.Getenv("POSTGRESS_PASSWORD")
+
 	// Declare an instance of the config struct
 	var cfg config
 
-	// Read the value of the port and env command-line flags into the config struct
-	// The port number defaults to 4000
-	// The environment defaults to "development"\
+	// Read application configuration settings from command-line flags into the config struct
 	flag.IntVar(&cfg.port, "port", 4000, "API server port")
 	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
+	flag.StringVar(&cfg.db.dsn, "db-dsn", fmt.Sprintf("postgres://greenlight:%s@localhost/greenlight?sslmode=disable", psqlPass), "Postgres DSN")
+	flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", 25, "PostgresSQL max open connections")
+	flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", 25, "Postgres SQL max idle connections")
+	flag.StringVar(&cfg.db.maxIdleTime, "db-max-idle-time", "15m", "PostgresSQL max connection time")
+
 	flag.Parse()
 
 	// Initialize a new logger which writes messages to the standard out stream,
 	// prefixed with the current date and time.
 	logger := log.New(os.Stdout, "", log.Ldate | log.Ltime)
+
+	// Call openDB() to create the connection pool, passing in the config struct.
+	// If it returns an error, we log it and exit immediately.
+	db, err := openDB(cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Defer a call to db.Close() so that the connection pool is closed before
+	// the main() function exits.
+	defer db.Close()
+
+	logger.Println("database connection pool established")
 
 	// Declare an instance of the application struct, containing the config struct and the logger.
 	app := &application{
@@ -74,6 +109,49 @@ func main() {
 
 	// Start the HTTP server
 	logger.Printf("Starting %s server on port %d", cfg.env, cfg.port)
-	err := srv.ListenAndServe()
+	err = srv.ListenAndServe()
 	logger.Fatal(err)
+}
+
+// openDB() returns a sql.DB connection pool.
+func openDB(cfg config) (*sql.DB, error) {
+	// Use sql.Open() to create an empty connection pool, using the DSN from the config struct.
+	db, err := sql.Open("postgres", cfg.db.dsn)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set the maximum number of open (in-use + idle) connections in the pool.
+	// Passing a value less than or equal to 0 means no limit.
+	db.SetMaxOpenConns(cfg.db.maxOpenConns)
+
+	// Set the maximum number of idle connections in the pool.
+	// Passing a value less than or equal to 0 means no limit.
+	db.SetMaxIdleConns(cfg.db.maxIdleConns)
+
+	// Use time.ParseDuration() to convert the idle timeout duration string
+	// to a time.Duration
+	duration, err := time.ParseDuration(cfg.db.maxIdleTime)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set the maximum idle timeout
+	db.SetConnMaxIdleTime(duration)
+
+	// Create a context with a 5-second timeout deadline.
+	ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
+	defer cancel()
+
+	// Use PingContext() to establish a new connection to the database, passing in the context
+	// we created above as a parameter.
+	// If the connection couldn't be established successfully within a 5 seconds deadline,
+	// this will return an error.
+	err = db.PingContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Return the sql.DB connection pool
+	return db, nil
 }
