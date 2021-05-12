@@ -1,6 +1,7 @@
 package data
 
 import (
+	"database/sql"
 	"time"
 
 	"github.com/jseow5177/greenlight/internal/validator"
@@ -32,4 +33,29 @@ func ValidateMovie(v *validator.Validator, movie *Movie) {
 	v.Check(len(movie.Genres) >= 1, "genres", "must contain at least 1 genre")
 	v.Check(len(movie.Genres) <= 5, "genres", "must not contain more than 5 genres")
 	v.Check(validator.Unique(movie.Genres), "genres", "must not contain duplicate values")
+}
+
+// Define a MovieModel struct type which wraps a sql.DB connection pool.
+type MovieModel struct {
+	DB *sql.DB
+}
+
+// Insert() inserts a new record in the movies table.
+func (m MovieModel) Insert(movie *Movie) error {
+	return nil
+}
+
+// Get() fetches a specific record from the movies table.
+func (m MovieModel) Get(id int64) (*Movie, error) {
+	return nil, nil
+}
+
+// Update() updates a specific record in the movies table.
+func (m MovieModel) Update(movie *Movie) error {
+	return nil
+}
+
+// Delete() deletes a specific record from the movies table.
+func (m MovieModel) Delete(id int64) error {
+	return nil
 }
