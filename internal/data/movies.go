@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/jseow5177/greenlight/internal/validator"
+	"github.com/lib/pq"
 )
 
 
@@ -42,7 +43,21 @@ type MovieModel struct {
 
 // Insert() inserts a new record in the movies table.
 func (m MovieModel) Insert(movie *Movie) error {
-	return nil
+	// The SQL query for inserting a new record in the movies table and returning
+	// the system-generated data
+	query := `
+		INSERT INTO movies (title, year, runtime, genres)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, created_at, version`
+
+	// Create an args slice containing the values for the placeholder parameters.
+	// Declaring this slice immediately next to our SQL query helps to make it clear *what values are being 
+	// used where* in the query.
+	args := []interface{}{movie.Title, movie.Year, movie.Runtime, pq.Array(movie.Genres)}
+
+	// Use Queryow() method to execute the SQL query passing in the args slice as variadic parameter.
+	// Then, scan the system generated id, created_at and version values into the movie struct.
+	return m.DB.QueryRow(query, args...).Scan(&movie.ID, &movie.CreatedAt, &movie.Version)
 }
 
 // Get() fetches a specific record from the movies table.
