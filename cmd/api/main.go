@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
+	"github.com/jseow5177/greenlight/internal/data"
 	_ "github.com/lib/pq"
 )
 
@@ -37,6 +38,7 @@ type config struct {
 type application struct {
 	config
 	logger *log.Logger
+	models data.Models
 }
 
 func main() {
@@ -82,6 +84,7 @@ func main() {
 	app := &application{
 		config: cfg,
 		logger: logger,
+		models: data.NewModels(db), // Add database models as application dependency
 	}
 
 	// Declare a custom ServeMux
