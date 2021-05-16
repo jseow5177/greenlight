@@ -55,27 +55,27 @@ We can configure the behavior of Go's connection pool with the following four se
 
 Run the following scripts in sequence.
 
-1. Run all 'up' migration files
+Run all 'up' migration files
 
 `sh ./bash/migrateup.sh`
 
-2. Test handler to create movies
+Test handler to create movies
 
 `sh ./bash/createmovie.sh`
 
-3. Test handler to show movies
+Test handler to show movies
 
 `sh ./bash/showmovie.sh`
 
-4. Test handler to update movies
+Test handler to update movies
 
 `sh ./bash/updatemovie.sh`
 
-5. Test handler to delete movies
+Test handler to delete movies
 
 `sh ./bash/deletemovie.sh`
 
-6. Run all 'down' migration files
+Run all 'down' migration files
 
 `sh ./bash/migratedown.sh`
 
