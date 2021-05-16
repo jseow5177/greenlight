@@ -2,6 +2,7 @@ package data
 
 import (
 	"database/sql"
+	"errors"
 	"time"
 
 	"github.com/jseow5177/greenlight/internal/validator"
@@ -62,15 +63,102 @@ func (m MovieModel) Insert(movie *Movie) error {
 
 // Get() fetches a specific record from the movies table.
 func (m MovieModel) Get(id int64) (*Movie, error) {
-	return nil, nil
+	// The bigserial type of primary key id is always positive (starts from 1)
+	// Do an early check on negative integers to avoid unnecessary database calls
+	if id < 1 {
+		return nil, ErrRecordNotFound
+	}
+
+
+	// Declare the SQL query for retrieving a movie from the database
+	query := `
+		SELECT id, created_at, title, year, runtime, genres, version
+		FROM movies
+		WHERE id = $1
+	`
+
+	// Declare a pointer to the Movie struct to hold the data returned by the query
+	movie := new(Movie)
+
+	err := m.DB.QueryRow(query, id).Scan(
+		&movie.ID,
+		&movie.CreatedAt,
+		&movie.Title,
+		&movie.Year,
+		&movie.Runtime,
+		pq.Array(&movie.Genres), // Use pq.Array adapter to handler text[] array
+		&movie.Version,
+	)
+
+	if err != nil {
+		switch {
+		// If no matching movie found, Scan() returns a sql.ErrNoRows error
+		case errors.Is(err, sql.ErrNoRows):
+				return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+
+	return movie, nil
 }
 
 // Update() updates a specific record in the movies table.
 func (m MovieModel) Update(movie *Movie) error {
-	return nil
+
+	// Declare the SQL query for updating the record and returning the new version number
+	query := `
+		UPDATE movies
+		SET title = $1, year = $2, runtime = $3, genres = $4, version = version + 1
+		WHERE id = $5
+		RETURNING version
+	`
+
+	// Create an args slice containing the value for the placeholder parameters
+	args := []interface{}{
+		movie.Title,
+		movie.Year,
+		movie.Runtime,
+		pq.Array(movie.Genres),
+		movie.ID,
+	}
+
+	// Use QueryRow() to execute the query, passing in the args slice as a variadic parameter
+	// Scan the new version value into the movie struct
+	return m.DB.QueryRow(query, args...).Scan(&movie.Version)
 }
 
 // Delete() deletes a specific record from the movies table.
 func (m MovieModel) Delete(id int64) error {
+	// Return an ErrRecordNotFound error if the movie ID is less than 1
+	if id < 1 {
+		return ErrRecordNotFound
+	}
+
+	// Declare the SQL query to delete the record
+	query := `
+		DELETE FROM movies
+		WHERE id = $1
+	`
+
+	// Execute the query
+	// This returns a sql.Request object and an error (if any)
+	result, err := m.DB.Exec(query, id)
+	if err != nil {
+		return err
+	}
+
+	// Get the numbr of rows affected by the query
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return nil
+	}
+
+	// If no rows affected, we know the movie does not exist
+	// In that case, an ErrRecordNotFound is returned
+	if rowsAffected == 0 {
+		return ErrRecordNotFound
+	}
+
 	return nil
 }
