@@ -1,0 +1,3 @@
+# Run all 'up' migration files
+echo Applying up migrations...
+migrate -path="./migrations" -database="postgres://greenlight:pa55word@localhost/greenlight?sslmode=disable" up
