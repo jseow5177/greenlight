@@ -98,3 +98,26 @@ echo "$BODY"
 echo "$OUTPUTMESSAGE"
 curl -i -d "$BODY" localhost:4000/v1/movies
 echo
+
+# Create more movies
+echo Creating Deadpool movie...
+echo "$INPUTMESSAGE"
+BODY='{"title":"Deadpool","year":2016, "runtime":"108 mins","genres":["action","comedy"]}'
+echo "$BODY"
+echo "$OUTPUTMESSAGE"
+curl -d "$BODY" localhost:4000/v1/movies
+
+echo Creating Black Panther movie...
+echo "$INPUTMESSAGE"
+BODY='{"title":"Black Panther","year":2018,"runtime":"134 mins","genres":["action","adventure"]}'
+echo "$BODY"
+echo "$OUTPUTMESSAGE"
+curl -d "$BODY" localhost:4000/v1/movies
+
+echo Creating The Breakfast Club movie...
+echo "$INPUTMESSAGE"
+BODY='{"title":"The Breakfast Club","year":1986, "runtime":"96 mins","genres":["drama"]}'
+echo "$BODY"
+echo "$OUTPUTMESSAGE"
+curl -d "$BODY" localhost:4000/v1/movies
+
