@@ -5,6 +5,16 @@ Greenlist is a JSON API built with Go for retrieving and managing information ab
 
 This project is from the book <a href="https://lets-go-further.alexedwards.net/" target="_blank">Let's Go Further!</a> by Alex Edwards.
 
+## Software Versions
+1. PostgreSQL v13.2
+2. Go v1.16.3 windows/amd64
+3. migrate v4.14.1
+4. curl
+
+## Getting started
+
+TODO: Add instructions to setup development environment.
+
 ## Project Structure
 - `bin` - Contain compiled application binaries, ready for deployment to a production server.
 - `cmd/api` - Contain application-specifc code for the Greenlight API application.
@@ -39,4 +49,36 @@ We can configure the behavior of Go's connection pool with the following four se
 | MaxIdleConns | The maximum number of idle connections in the pool. | 2 |  25 | 
 | MaxOpenConns | The maximum number of open connections (in-use + idle) in the pool. | Unlimited | 25 |
 | ConnMaxLifetime | The maximum length of time that a connection can be reused for. | Unlimited | Default |
-| ConnMaxIdleTime | The maximum length of time that a connection can be idle. | Unlimited | 15 mins | 
+| ConnMaxIdleTime | The maximum length of time that a connection can be idle. | Unlimited | 15 mins |
+
+## API Test Scripts
+
+Run the following scripts in sequence.
+
+1. Run all 'up' migration files
+
+`sh ./bash/migrateup.sh`
+
+2. Test handler to create movies
+
+`sh ./bash/createmovie.sh`
+
+3. Test handler to show movies
+
+`sh ./bash/showmovie.sh`
+
+4. Test handler to update movies
+
+`sh ./bash/updatemovie.sh`
+
+5. Test handler to delete movies
+
+`sh ./bash/deletemovie.sh`
+
+6. Run all 'down' migration files
+
+`sh ./bash/migratedown.sh`
+
+
+
+
