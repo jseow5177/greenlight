@@ -118,14 +118,17 @@ func (app *application) updateMovieHandler (w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Declare an input struct to hold the expected data from the client
+	// Declare an input struct to hold the expected data from the client.
+	// Fields in struct are pointers. Pointers have a zero-value of nil.
+	// This makes it easy to differentiate between zero-value (which returns validation error)
+	// and user not providing key/value pair (which 'skips' updating the field).
 	var input struct {
-		Title string `json:"title"`
-		Year int32 `json:"year"`
-		Runtime data.Runtime `json:"runtime"`
+		Title *string `json:"title"`
+		Year *int32 `json:"year"`
+		Runtime *data.Runtime `json:"runtime"`
 		Genres []string `json:"genres"`
 	}
-
+ 
 	// Read the JSON request body data into the input struct
 	err = app.readJSON(w, r, &input)
 	if err != nil {
@@ -133,11 +136,20 @@ func (app *application) updateMovieHandler (w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Copy the values from the request body to the appropriate fields of the movie record
-	movie.Title = input.Title
-	movie.Year = input.Year
-	movie.Runtime = input.Runtime
-	movie.Genres = input.Genres
+	// Check if the pointers are nil.
+	// If nil, the user did not provide any update to the key/value pair.
+	if input.Title != nil {
+		movie.Title = *input.Title
+	}
+	if input.Year != nil {
+		movie.Year = *input.Year
+	}
+	if input.Runtime != nil {
+		movie.Runtime = *input.Runtime
+	}
+	if input.Genres != nil {
+		movie.Genres = input.Genres // No need to dereference a slice
+	}
 
 	// Validate the updated movie, sending the client a 422 Unprocessable Entity if any checks fail
 	v := validator.New()
@@ -149,7 +161,12 @@ func (app *application) updateMovieHandler (w http.ResponseWriter, r *http.Reque
 	// Pass the updated movie to the Update() method
 	err = app.models.Movies.Update(movie)
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		switch {
+		case errors.Is(err, data.ErrEditConflict): // Intercept conflict in data race
+			app.editConflictResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
 		return
 	}
 
@@ -157,7 +174,6 @@ func (app *application) updateMovieHandler (w http.ResponseWriter, r *http.Reque
 	err = app.writeJSON(w, http.StatusOK, envelope{"movie": movie}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
-		return
 	}
 }
 
