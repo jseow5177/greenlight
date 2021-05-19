@@ -5,9 +5,9 @@ import (
 	"errors"
 )
 
-// Define a custom ErrRecordNotFound error.
 var (
-	ErrRecordNotFound = errors.New("record not found")
+	ErrRecordNotFound = errors.New("record not found") // To deal with missing record
+	ErrEditConflict = errors.New("edit conflict") // To deal with race condition
 )
 
 // Create a Models struct that wraps all database models of this application.
