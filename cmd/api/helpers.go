@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
+	"github.com/jseow5177/greenlight/internal/validator"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -32,7 +34,7 @@ func (app *application) readIDParam(r *http.Request) (int64, error) {
 	return id, nil
 }
 
-// Define a writeJSON() helper for sending responses. This takes the destination
+// Define a writeJSON() helper for sending JSON responses. This takes the destination
 // http.ResponseWriter, the HTTP status code to send, the data to encode to JSON, and a 
 // header map containing any additional HTTP headers we want to include in the response.
 func (app * application) writeJSON(w http.ResponseWriter, status int, data envelope, headers http.Header) error {
@@ -59,6 +61,8 @@ func (app * application) writeJSON(w http.ResponseWriter, status int, data envel
 	return nil
 }
 
+
+// readJSON() helper reads JSON data in the request body into a destination dst.
 func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst interface{}) error {
 	// Use http.MaxBytesReader() to limit the size of request body to 1MB.
 	maxBytes := 1_048_576
@@ -133,4 +137,59 @@ func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst int
 	}
 
 	return nil
+}
+
+// readString() helper returns a string value from the query string, or the provided default value if no matching
+// key could be found
+func (app *application) readString(qs url.Values, key string, defaultValue string) string {
+	// Extract the value for a given key from the query string
+	// If no key exists, this returns an empty string ""
+	s := qs.Get(key)
+
+	// If no key exists (or the value is empty), return the default string value
+	if s == "" {
+		return defaultValue
+	}
+
+	// Else, return the extracted value
+	return s
+}
+
+// readCSV() helper reads a comma-separated string value from the query string and then splits it
+// into a slice on the comma character. If no matching key is found, it returns the provided default value
+func (app *application) readCSV(qs url.Values, key string, defaultValue []string) []string {
+	// Extract the value from query string
+	csv := qs.Get(key)
+
+	// If no key exists (or the value is empty), return the default string value
+	if csv == "" {
+		return defaultValue
+	}
+
+	// Else, parse the value into a []string slice and return it
+	return strings.Split(csv, ",")
+}
+
+// readInt() helper reads a string value from the query string and converts it to an integer before returning.
+// If no matching key is found, it returns the provided default value.
+// If the value could not be converted to an integer, then we record the error message in the provided Validator instance.
+func (app *application) readInt(qs url.Values, key string, defaultValue int, v *validator.Validator) int {
+	// Extract the value from query string
+	s := qs.Get(key)
+
+	// If no key exists (or the value is empty), return the default string value
+	if s == "" {
+		return defaultValue
+	}
+
+	// Try to convert the value to an int.
+	// If it fails, add an error message to the validator instance and return the default value
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		v.AddError(key, "must be an integer value")
+		return defaultValue
+	}
+
+	// Otherwise, return the converted integer value
+	return i
 }
