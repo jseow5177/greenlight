@@ -12,12 +12,7 @@ var (
 
 // Create a Models struct that wraps all database models of this application.
 type Models struct {
-	Movies interface {
-		Insert(movie *Movie) error
-		Get(id int64) (*Movie, error)
-		Update(movie *Movie) error
-		Delete(id int64) error
-	}
+	Movies MovieModel
 }
 
 // The New() method returns a newly initialized Models struct 
