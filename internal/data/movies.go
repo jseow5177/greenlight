@@ -43,6 +43,66 @@ type MovieModel struct {
 	DB *sql.DB
 }
 
+// List() gets a list of movies from the movies table.
+func (m MovieModel) GetAll(title string, genres []string, filters Filters) ([]*Movie, error) {
+	// Construct the SQL query to retrieve all the movie records
+	query := `
+		SELECT id, created_at, title, year, runtime, genres, version
+		FROM movies
+		ORDER BY id`
+
+	// Create a context with a 3-second timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	// Use QueryContext() to execute the query
+	// This returns a sql.Rows resultset containing the results
+	rows, err := m.DB.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+
+	// Defer a call to rows.Close() to ensure that the resultset is closed 
+	// before GetAll() returns
+	defer rows.Close()
+
+	// Initialize an empty slice to hold the movie data
+	movies := []*Movie{}
+
+	// Iterate through the rows in the resultset
+	for rows.Next() {
+		// Initialize an empty Movie struct 
+		movie := new(Movie)
+
+		// Scan the values from the row into the Movie struct
+		err := rows.Scan(
+			&movie.ID,
+			&movie.CreatedAt,
+			&movie.Title,
+			&movie.Year,
+			&movie.Runtime,
+			pq.Array(&movie.Genres),
+			&movie.Version,
+		)
+
+		if err != nil {
+			return nil, err
+		}
+
+		// Add movie struct to slice
+		movies = append(movies, movie)
+	}
+
+	// rows.Next() return false if any errors are encountered or when the iteration is finished
+	// Need to use rows.Err() to differentiate between both false cases
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// Return the slice of movies if everything is OK
+	return movies, nil
+}
+
 // Insert() inserts a new record in the movies table.
 func (m MovieModel) Insert(movie *Movie) error {
 	// The SQL query for inserting a new record in the movies table and returning
@@ -57,9 +117,13 @@ func (m MovieModel) Insert(movie *Movie) error {
 	// used where* in the query.
 	args := []interface{}{movie.Title, movie.Year, movie.Runtime, pq.Array(movie.Genres)}
 
+	// Create a context with a 3-second timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
 	// Use Queryow() method to execute the SQL query passing in the args slice as variadic parameter.
 	// Then, scan the system generated id, created_at and version values into the movie struct.
-	return m.DB.QueryRow(query, args...).Scan(&movie.ID, &movie.CreatedAt, &movie.Version)
+	return m.DB.QueryRowContext(ctx, query, args...).Scan(&movie.ID, &movie.CreatedAt, &movie.Version)
 }
 
 // Get() fetches a specific record from the movies table.
