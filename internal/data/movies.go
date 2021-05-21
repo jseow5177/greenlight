@@ -45,10 +45,19 @@ type MovieModel struct {
 
 // List() gets a list of movies from the movies table.
 func (m MovieModel) GetAll(title string, genres []string, filters Filters) ([]*Movie, error) {
-	// Construct the SQL query to retrieve all the movie records
+	// Construct the SQL query to retrieve all the movie records (supports basic full-text search).
+	// to_tsvector('english', title) applies the 'english' configuration to break title into normalized lexemes.
+	// The configuration includes a list of dictionaries. Tokens are normalised and stemmed. Stop words are removed.
+	// The result is a tsvector.
+	// plainto_tsquery('english', $1) creates a tsquery from user queries using the 'english' configuration.
+	// Also normalise and stem tokens. Stop words are removed.
+	// The result is a tsquery. The single tokens are separated by the & operator.
+	// The @@ operator is the matches operator. Used to check whether the query term matches the lexemes.
 	query := `
 		SELECT id, created_at, title, year, runtime, genres, version
 		FROM movies
+		WHERE (to_tsvector('english', title) @@ plainto_tsquery('english', $1) OR $1 = '')
+		AND (genres @> $2 OR cardinality($2) = 0)
 		ORDER BY id`
 
 	// Create a context with a 3-second timeout
@@ -57,7 +66,7 @@ func (m MovieModel) GetAll(title string, genres []string, filters Filters) ([]*M
 
 	// Use QueryContext() to execute the query
 	// This returns a sql.Rows resultset containing the results
-	rows, err := m.DB.QueryContext(ctx, query)
+	rows, err := m.DB.QueryContext(ctx, query, title, pq.Array(genres))
 	if err != nil {
 		return nil, err
 	}
