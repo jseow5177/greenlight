@@ -9,6 +9,63 @@ import (
 	"github.com/jseow5177/greenlight/internal/validator"
 )
 
+// Add a listMoviesHandler for "GET /V1/movies"
+func (app *application) listMoviesHandler(w http.ResponseWriter, r *http.Request) {
+	// Define an input struct to hold the expected values from the request query string
+	// This is consistent with other handlers
+	var input struct {
+		Title string
+		Genres []string
+		data.Filters
+	}
+
+	// Define a new validator instance
+	v := validator.New()
+
+	// To get the url.Values map containing the query string data
+	qs := r.URL.Query()
+
+	// Extract title from query string value
+	// Defaults to empty string
+	input.Title = app.readString(qs, "title", "")
+
+	// Extract sort from query string value
+	// Defaults to "id", which indicates an ascending sort by movie ID
+	input.Filters.Sort = app.readString(qs, "sort", "id")
+
+	// Extract genres from query string value
+	// Defaults to empty slice
+	input.Genres = app.readCSV(qs, "genres", []string{})
+
+	// Extract page and page_size from query string values as integers
+	// page defaults to 1, while page_size defaults to 20
+	input.Filters.Page = app.readInt(qs, "page", 1, v)
+	input.Filters.PageSize = app.readInt(qs, "page_size", 20, v)
+
+	// Add the supported sort values for this endpoint to sort safelist
+	input.Filters.SortSafeList = []string{"id", "title", "year", "runtime", "-id", "-title", "-year", "-runtime"}
+
+	// Execute the validation checks on the Filters struct and send a response
+	// containing the errors if necessary
+	if data.ValidateFilters(v, input.Filters); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	// Call the GetAll() method to retrieve the movies, passing in the various filter parameters
+	movies, err := app.models.Movies.GetAll(input.Title, input.Genres, input.Filters)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	// Send a JSON response containing the movies data
+	err = app.writeJSON(w, http.StatusOK, envelope{"movies": movies}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
 // Add a createMovieHandler for "POST /v1/movies"
 func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Request) {
 	// Declare an anonymous struct to hold the information that we expect to be in the HTTP request body.
