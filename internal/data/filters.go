@@ -1,17 +1,45 @@
 package data
 
 import (
+	"math"
 	"strings"
 
 	"github.com/jseow5177/greenlight/internal/validator"
 )
 
+// Define a new Metadata struct for holding the pagination metadata
+type Metadata struct {
+	CurrentPage int `json:"current_page,omitempty"`
+	PageSize int `json:"page_size,omitempty"`
+	FirstPage int `json:"first_page,omitempty"`
+	LastPage int `json:"last_page,omitempty"`
+	TotalRecords int `json:"total_records,omitempty"`
+}
 
 type Filters struct {
 	Page         int
 	PageSize     int
 	Sort         string
 	SortSafeList []string
+}
+
+// calculateMetadata() function calculates the appropriate pagination metadata values given the total number of records, 
+// current page, and page size values.
+// The last page value is calculated using the math.Ceil() function. If there were 12 records in total and a page size of 5,
+// the last page would be math.Ceil(12/5) = 3.
+func calculateMetadata(totalRecords, page, pageSize int) Metadata {
+	if totalRecords == 0 {
+		// Return an empty metadata if there are no records
+		return Metadata{}
+	}
+	
+	return Metadata{
+		CurrentPage: page,
+		PageSize: pageSize,
+		FirstPage: 1,
+		LastPage: int(math.Ceil(float64(totalRecords) / float64(pageSize))),
+		TotalRecords: totalRecords,
+	}
 }
 
 // Check that the client-provided Sort field matche one of the entries in our safelist.
@@ -35,6 +63,18 @@ func (f Filters) sortDirection() string {
 		return "DESC"
 	}
 	return "ASC"
+}
+
+// Return the pagination page size
+func (f Filters) limit() int {
+	return f.PageSize
+}
+
+// Return the paginated page requested by user.
+// There is a theoretical risk of an integer overflow as two int values are multiplied together.
+// But, it is mitigated by the validation rules in ValidateFilters().
+func (f Filters) offset() int {
+	return (f.Page - 1) * f.PageSize
 }
 
 func ValidateFilters(v *validator.Validator, f Filters) {
