@@ -70,7 +70,7 @@ The API `GET /v1/movies` supports query parameters that implement filtering, sor
 
 ### Filtering
 
-This application uses reductive filtering and performs a basic full-text partial searches.
+This application uses reductive filtering and supports a basic full-text, case-insensitive, partial searches. The fields that allow filtering are `title` and `genres`.
 
 ```
 // List all movies
@@ -85,6 +85,20 @@ This application uses reductive filtering and performs a basic full-text partial
 // List movies where the title is a case-insensitive exact match for 'moana' AND the
 // genres include both 'animation' AND 'adventure'
 /v1/movies?title=moana&genres=animation,adventure
+
+// List movies sorted in the ascending order by title
+```
+
+### Sorting
+
+The movies can be sorted with the `sort` query parameter. The supported sort values are `id`, `title`, `year`, `runtime`, `-id`, `-title`, `-year`, and `-runtime`. `-` indicates a descensing order.
+
+```
+// List movies sorted in the ascending order by title
+/v1/movies?sort=title
+
+// List movies sorted in the descending order by runtime
+/v1/movies?sort=-runtime
 ```
 
 ## API Test Scripts
