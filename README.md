@@ -55,7 +55,7 @@ We can configure the behavior of Go's connection pool with the following four se
 
 ### Movie
 
-| Field | Description | 
+| Key | Description | 
 | ----- | ------ | 
 | id | Unique identifier |
 | title | Title of movie |
@@ -68,9 +68,30 @@ We can configure the behavior of Go's connection pool with the following four se
 
 The API `GET /v1/movies` supports query parameters that implement filtering, sorting, and pagination.
 
+### Pagination
+
+The movie data can be paginated with two query parameters: `page_size` and `page`. `page_size` determines the size of page while `page` indicates which page of paginated data to return. 
+
+Pagination is applied on data after filtering. The paginated data is also sorted with `id` by default unless other sort values are provided. The default `page` is 1 and `page_size` is 20.
+
+```
+// Return movies at page two where page size is 5 
+/v1/movies?page_size=5&page=2
+```
+
+The application also returns pagination `metadata` in JSON that helps client to better navigate the different pages. It has the following key/value pairs.
+
+| Key | Description | 
+| ----- | ------ | 
+| current_page | The `page` requested by user |
+| page_size | The `page_size` requested by user |
+| first_page | The first page of the paginated data. Has a value of 1 |
+| last_page | The last available page of the paginated data |
+| total_records | The total number of paginated data |
+
 ### Filtering
 
-This application uses reductive filtering and supports a basic full-text, case-insensitive, partial searches. The fields that allow filtering are `title` and `genres`.
+This application uses reductive filtering and supports a basic full-text, case-insensitive, partial searches. The movie fields that can be filtered are `title` and `genres`. By default, no filtering is applied.
 
 ```
 // List all movies
@@ -91,7 +112,7 @@ This application uses reductive filtering and supports a basic full-text, case-i
 
 ### Sorting
 
-The movies can be sorted with the `sort` query parameter. The supported sort values are `id`, `title`, `year`, `runtime`, `-id`, `-title`, `-year`, and `-runtime`. `-` indicates a descensing order.
+The movies can be sorted with the `sort` query parameter. The supported sort values are `id`, `title`, `year`, `runtime`, `-id`, `-title`, `-year`, and `-runtime`. `-` indicates a descending order. The default sort value is `id`.
 
 ```
 // List movies sorted in the ascending order by title
@@ -101,33 +122,17 @@ The movies can be sorted with the `sort` query parameter. The supported sort val
 /v1/movies?sort=-runtime
 ```
 
-## API Test Scripts
+## Logging
 
-Run the following scripts in sequence.
+Each log entry in the application is a single JSON object with the following key/value pairs
 
-Run all 'up' migration files
-
-`sh ./bash/migrateup.sh`
-
-Test handler to create movies
-
-`sh ./bash/createmovie.sh`
-
-Test handler to show movies
-
-`sh ./bash/showmovie.sh`
-
-Test handler to update movies
-
-`sh ./bash/updatemovie.sh`
-
-Test handler to delete movies
-
-`sh ./bash/deletemovie.sh`
-
-Run all 'down' migration files
-
-`sh ./bash/migratedown.sh`
+| Key | Description | 
+| ----- | ------ | 
+| level | A code that indicate the severity of the log entry. There are three severity levels: INFO (least severe), ERROR, FATAL (most severe) |
+| time | The UTC time that the log entry was made with second precision |
+| message | A string containing the free-text information or error message |
+| properties | Any additional information relevant to the log entry in string key/value pairs (optional) |
+| trace | A stack trace for debugging purposes (optional) |
 
 
 
