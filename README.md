@@ -51,6 +51,42 @@ We can configure the behavior of Go's connection pool with the following four se
 | ConnMaxLifetime | The maximum length of time that a connection can be reused for. | Unlimited | Default |
 | ConnMaxIdleTime | The maximum length of time that a connection can be idle. | Unlimited | 15 mins |
 
+## Database Models
+
+### Movie
+
+| Field | Description | 
+| ----- | ------ | 
+| id | Unique identifier |
+| title | Title of movie |
+| year | Movie release year |
+| runtime | Movie runtime in minutes |
+| genres | Movies genres |
+| version | The version of movie data. Incremented on each update |
+
+## Filtering, Sorting and Pagination
+
+The API `GET /v1/movies` supports query parameters that implement filtering, sorting, and pagination.
+
+### Filtering
+
+This application uses reductive filtering and performs a basic full-text partial searches.
+
+```
+// List all movies
+/v1/movies
+
+// List movies where the title is a case-insenstive exact match for 'black panther'
+/v1/movies?title=black+panther
+
+// List movies where the genres includes 'adventure'
+/v1/movies?genres=adventure
+
+// List movies where the title is a case-insensitive exact match for 'moana' AND the
+// genres include both 'animation' AND 'adventure'
+/v1/movies?title=moana&genres=animation,adventure
+```
+
 ## API Test Scripts
 
 Run the following scripts in sequence.
