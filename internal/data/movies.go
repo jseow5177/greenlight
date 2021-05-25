@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jseow5177/greenlight/internal/validator"
@@ -53,12 +54,12 @@ func (m MovieModel) GetAll(title string, genres []string, filters Filters) ([]*M
 	// Also normalise and stem tokens. Stop words are removed.
 	// The result is a tsquery. The single tokens are separated by the & operator.
 	// The @@ operator is the matches operator. Used to check whether the query term matches the lexemes.
-	query := `
+	query := fmt.Sprintf(`
 		SELECT id, created_at, title, year, runtime, genres, version
 		FROM movies
 		WHERE (to_tsvector('english', title) @@ plainto_tsquery('english', $1) OR $1 = '')
 		AND (genres @> $2 OR cardinality($2) = 0)
-		ORDER BY id`
+		ORDER BY %s %s, id ASC`, filters.sortColumn(), filters.sortDirection()) // Interpolate sort column and direction
 
 	// Create a context with a 3-second timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
