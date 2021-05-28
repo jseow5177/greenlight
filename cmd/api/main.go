@@ -32,6 +32,11 @@ type config struct {
 		maxIdleConns int
 		maxIdleTime string
 	}
+	limiter struct {
+		rps float64 // Request per second limiter
+		burst int // Burst value for limiter
+		enabled bool // Boolean value to enable or disable rate limitting
+	}
 }
 
 // Define an application struct to hold the dependencies for HTTP handlers, helpers,
@@ -57,10 +62,15 @@ func main() {
 	// Read application configuration settings from command-line flags into the config struct
 	flag.IntVar(&cfg.port, "port", 4000, "API server port")
 	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
+
 	flag.StringVar(&cfg.db.dsn, "db-dsn", fmt.Sprintf("postgres://greenlight:%s@localhost/greenlight?sslmode=disable", psqlPass), "Postgres DSN")
 	flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", 25, "PostgresSQL max open connections")
 	flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", 25, "Postgres SQL max idle connections")
 	flag.StringVar(&cfg.db.maxIdleTime, "db-max-idle-time", "15m", "PostgresSQL max connection time")
+
+	flag.Float64Var(&cfg.limiter.rps, "limiter-rps", 2, "Rate limiter maximum requests per second")
+	flag.IntVar(&cfg.limiter.burst, "limiter-burst", 4, "Rate limiter maximum burst")
+	flag.BoolVar(&cfg.limiter.enabled, "limiter-enabled", true, "Enable rate limiter")
 
 	flag.Parse()
 
