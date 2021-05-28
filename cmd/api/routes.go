@@ -7,7 +7,7 @@ import (
 )
 
 
-func (app *application) routes() *httprouter.Router {
+func (app *application) routes() http.Handler {
 	// Initialize a new httprouter router instance
 	// More options on how to customize the application behavior further:
 	// https://pkg.go.dev/github.com/julienschmidt/httprouter#Router
@@ -30,5 +30,5 @@ func (app *application) routes() *httprouter.Router {
 	router.HandlerFunc(http.MethodPatch, "/v1/movies/:id", app.updateMovieHandler)
 	router.HandlerFunc(http.MethodDelete, "/v1/movies/:id", app.deleteMovieHandler)
 
-	return router
+	return app.recoverPanic(router)
 }
