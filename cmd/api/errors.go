@@ -63,9 +63,16 @@ func (app *application) failedValidationResponse(w http.ResponseWriter, r *http.
 	app.errorResponse(w, r, http.StatusUnprocessableEntity, errors)
 }
 
-// editConflictResponse is used to send a 409 Conflict status code and JSON response to the client
+// editConflictResponse() is used to send a 409 Conflict status code and JSON response to the client
 // Used to handle conflict in race condition
 func (app *application) editConflictResponse(w http.ResponseWriter, r *http.Request) {
 	message := "unable to update the record due to an edit conflict, please try again"
 	app.errorResponse(w, r, http.StatusConflict, message)
+}
+
+// rateLimitExceededResponse() sends a 429 Too Many Requests JSON response
+// Used to perform rate limiting (control rate of requests)
+func (app *application) rateLimitExceededResponse(w http.ResponseWriter, r *http.Request) {
+	message := "rate limit exceeded"
+	app.errorResponse(w, r, http.StatusTooManyRequests, message)
 }
