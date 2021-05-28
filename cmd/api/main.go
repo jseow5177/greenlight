@@ -12,6 +12,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/jseow5177/greenlight/internal/data"
+	"github.com/jseow5177/greenlight/internal/jsonlog"
 	_ "github.com/lib/pq"
 )
 
@@ -37,7 +38,7 @@ type config struct {
 // and middleware.
 type application struct {
 	config
-	logger *log.Logger
+	logger *jsonlog.Logger
 	models data.Models
 }
 
@@ -63,22 +64,22 @@ func main() {
 
 	flag.Parse()
 
-	// Initialize a new logger which writes messages to the standard out stream,
-	// prefixed with the current date and time.
-	logger := log.New(os.Stdout, "", log.Ldate | log.Ltime)
+	// Initialize a new jsonlog.Logger which writes any messages *at or above* the INFO
+	// severity level to the standard output stream
+	logger := jsonlog.New(os.Stdout, jsonlog.LevelInfo)
 
 	// Call openDB() to create the connection pool, passing in the config struct.
 	// If it returns an error, we log it and exit immediately.
 	db, err := openDB(cfg)
 	if err != nil {
-		log.Fatal(err)
+		logger.PrintFatal(err, nil)
 	}
 
 	// Defer a call to db.Close() so that the connection pool is closed before
 	// the main() function exits.
 	defer db.Close()
 
-	logger.Println("database connection pool established")
+	logger.PrintInfo("database connection pool established", nil)
 
 	// Declare an instance of the application struct, containing the config struct and the logger.
 	app := &application{
@@ -108,12 +109,20 @@ func main() {
 		// response write (for HTTP).
 		// For HTTPS, it covers the time from when request is accepted to the end of response write.
 		WriteTimeout: 30 * time.Second,
+		// Create a new Go log.logger instance with the log.New() function.
+		// We pass in our custom json logger as the first parameter.
+		// The "" and 0 indicate that the log.Logger instance should not use a prefix or any flags.
+		ErrorLog: log.New(logger, "", 0),
 	}
 
 	// Start the HTTP server
-	logger.Printf("Starting %s server on port %d", cfg.env, cfg.port)
+	logger.PrintInfo("starting server", map[string]string{
+		"addr": srv.Addr,
+		"env": cfg.env,
+	})
+
 	err = srv.ListenAndServe()
-	logger.Fatal(err)
+	logger.PrintFatal(err, nil)
 }
 
 // openDB() returns a sql.DB connection pool.
