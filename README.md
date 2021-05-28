@@ -26,6 +26,10 @@ TODO: Add instructions to setup development environment.
 - `Makefile` - Contain recipes for automating common administrative tasks (Go code auditing, building binaries and execute database migrations).
 - `bash` - Contain bash scripts that execute curl commands to test handlers
 
+## Command Line Flags
+
+At the root directory, run `go run ./cmd/api -h` to view the list of command-line flags available to configure application behavior.
+
 ## API Routes
 | Method | Route | Description |
 | ------ | ----- | ----------- |
@@ -134,6 +138,20 @@ Each log entry in the application is a single JSON object with the following key
 | properties | Any additional information relevant to the log entry in string key/value pairs (optional) |
 | trace | A stack trace for debugging purposes (optional) |
 
+## Rate Limiting
 
+To avoid excessive strain on the server, the APIs of this application implements rate limiting to prevent clients from making too many requests too quickly.
 
+It uses the <a href="https://pkg.go.dev/golang.org/x/time/rate" target="_blank">x/time/rate package</a> which implements a token bucket rate limiter.
 
+An overview of the token bucket rate limiter is as follows.
+
+1. The limiter has a bucket of fixed capacity `b`.
+2. The bucket starts with `b` number of tokens in it.
+3. Every `1/r` second, a token is added to the bucket. If the bucket is full, the token is discarded.
+4. When a HTTP request is received, one token is removed from the bucket.
+5. If the server receives a HTTP request and the bucket is empty, the server returns a 429 Too Many Requests.
+
+In other words, the server allows an average of `r` requests per second and a maximum `b` requests in a single 'burst'.
+
+The default values of `r` and `b` are 2 and 4.
