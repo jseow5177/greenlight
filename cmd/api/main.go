@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"time"
 
@@ -98,41 +97,11 @@ func main() {
 		models: data.NewModels(db), // Add database models as application dependency
 	}
 
-	// Declare a custom ServeMux
-	mux := http.NewServeMux()
-	mux.HandleFunc("/v1/healthcheck", app.healthcheckHandler)
-
-	// Declare a HTTP server with sensible timeout settings.
-	// The server listens on the port provided in the config struct and uses the ServeMux
-	// created above as the handler.
-	srv := &http.Server{
-		Addr: fmt.Sprintf(":%d", cfg.port),
-		Handler: app.routes(),
-		// Go enables persistent HTTP connections by default to reduce latency.
-		// By default, Go closes persistent connections after 3 minutes.
-		// We can reduce this default with the IdleTimeout setting.
-		IdleTimeout: time.Minute,
-		// ReadTimeout covers the time from when request is accepted to when the request body is fully read
-		// (If no body, until the end of headers)
-		ReadTimeout: 10 * time.Second,
-		// WriteTimeout covers the time from the end of the request header read to the end of the
-		// response write (for HTTP).
-		// For HTTPS, it covers the time from when request is accepted to the end of response write.
-		WriteTimeout: 30 * time.Second,
-		// Create a new Go log.logger instance with the log.New() function.
-		// We pass in our custom json logger as the first parameter.
-		// The "" and 0 indicate that the log.Logger instance should not use a prefix or any flags.
-		ErrorLog: log.New(logger, "", 0),
+	// Start the server
+	err = app.serve()
+	if err != nil {
+		logger.PrintFatal(err, nil)
 	}
-
-	// Start the HTTP server
-	logger.PrintInfo("starting server", map[string]string{
-		"addr": srv.Addr,
-		"env": cfg.env,
-	})
-
-	err = srv.ListenAndServe()
-	logger.PrintFatal(err, nil)
 }
 
 // openDB() returns a sql.DB connection pool.
