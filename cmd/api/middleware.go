@@ -31,7 +31,8 @@ func (app *application) rateLimit(next http.Handler) http.Handler {
 		for {
 			time.Sleep(time.Minute)
 
-			// Lock the mutex to prevent concurrent access to the clients map
+			// Lock the mutex to prevent any rate limiter checks from happening while
+			// the cleanup is taking place
 			mu.Lock()
 
 			// Loop through all the clients. If they haven't been seen in the last 3 minutes,
