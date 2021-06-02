@@ -35,9 +35,9 @@ func (app *application) readIDParam(r *http.Request) (int64, error) {
 }
 
 // Define a writeJSON() helper for sending JSON responses. This takes the destination
-// http.ResponseWriter, the HTTP status code to send, the data to encode to JSON, and a 
+// http.ResponseWriter, the HTTP status code to send, the data to encode to JSON, and a
 // header map containing any additional HTTP headers we want to include in the response.
-func (app * application) writeJSON(w http.ResponseWriter, status int, data envelope, headers http.Header) error {
+func (app *application) writeJSON(w http.ResponseWriter, status int, data envelope, headers http.Header) error {
 	// Encode the data to JSON, return error if any.
 	js, err := json.MarshalIndent(data, "", "\t")
 	if err != nil {
@@ -48,7 +48,7 @@ func (app * application) writeJSON(w http.ResponseWriter, status int, data envel
 	js = append(js, '\n')
 
 	// Loop through the header map and add each header to the http.ResponseWriter header map.
-	for key, value := range(headers) {
+	for key, value := range headers {
 		w.Header()[key] = value
 	}
 
@@ -60,7 +60,6 @@ func (app * application) writeJSON(w http.ResponseWriter, status int, data envel
 
 	return nil
 }
-
 
 // readJSON() helper reads JSON data in the request body into a destination dst.
 func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst interface{}) error {
@@ -86,11 +85,11 @@ func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst int
 		// Catch syntax error with JSON being decoded.
 		case errors.As(err, &syntaxError):
 			return fmt.Errorf("body contains badly-formed JSON (at character %d)", syntaxError.Offset)
-		
+
 		// In some cases, Decode() may return an io.ErrUnexpectedEOF error for syntax errors in JSON.
 		case errors.Is(err, io.ErrUnexpectedEOF):
 			return errors.New("body contains-badly formed JSON")
-		
+
 		// A json.UnmarshalTypeError error is returned when the JSON value is the wrong type for the target destination.
 		// If the error relates to a specific field, we include that in the error message.
 		case errors.As(err, &unmarshalTypeError):
@@ -98,13 +97,13 @@ func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst int
 				return fmt.Errorf("body contains incorrect JSON type for field %q", unmarshalTypeError.Field)
 			}
 			return fmt.Errorf("body contains incorrect JSON type (at character %d)", unmarshalTypeError.Offset)
-		
+
 		// A json.InvalidUnmarshalError error will be returned if we pass a non-nil pointer to Decode().
 		// This is a problem with the application code, not the JSON itself.
 		// We catch this error and panic.
 		case errors.As(err, &invalidUnmarshalError):
 			panic(err)
-		
+
 		// An io.EOF error is returned if the request body is empty.
 		case errors.Is(err, io.EOF):
 			return errors.New("body must not be empty")
@@ -116,7 +115,7 @@ func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst int
 		case strings.HasPrefix(err.Error(), "json: unknown field "):
 			fieldName := strings.TrimPrefix(err.Error(), "json: unknown field ")
 			return fmt.Errorf("body contains unknown key %s", fieldName)
-		
+
 		// If the request body exceeds 1MB in size, the decode will now fail with the error
 		// "http: request body too large". Currently, the error checking is done with string comparison.
 		// There is an open issue to turn it into a distinct error type: https://github.com/golang/go/issues/30715.
@@ -192,4 +191,20 @@ func (app *application) readInt(qs url.Values, key string, defaultValue int, v *
 
 	// Otherwise, return the converted integer value
 	return i
+}
+
+// runBackground() accepts and executes an arbitrary function in a new goroutine.
+// It catches and logs any error as a result of a panic.
+func (app *application) runBackground(fn func()) {
+	go func() {
+		// Recover from any panic in background routine else will crash application in panic.
+		defer func() {
+			if err := recover(); err != nil {
+				app.logger.PrintError(fmt.Errorf("%s", err), nil)
+			}
+		}()
+
+		// Executes the function in a background routine.
+		fn()
+	}()
 }
