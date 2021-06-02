@@ -12,6 +12,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/jseow5177/greenlight/internal/data"
 	"github.com/jseow5177/greenlight/internal/jsonlog"
+	"github.com/jseow5177/greenlight/internal/mailer"
 	_ "github.com/lib/pq"
 )
 
@@ -24,17 +25,24 @@ const version = "1.0.0"
 // They will have sensible default values if not provided in command-line.
 type config struct {
 	port int
-	env string
-	db struct {
-		dsn string
+	env  string
+	db   struct {
+		dsn          string
 		maxOpenConns int
 		maxIdleConns int
-		maxIdleTime string
+		maxIdleTime  string
 	}
 	limiter struct {
-		rps float64 // Request per second limiter
-		burst int // Burst value for limiter
-		enabled bool // Boolean value to enable or disable rate limitting
+		rps     float64 // Request per second limiter
+		burst   int     // Burst value for limiter
+		enabled bool    // Boolean value to enable or disable rate limitting
+	}
+	smtp struct {
+		host     string
+		port     int
+		username string
+		password string
+		sender   string
 	}
 }
 
@@ -44,6 +52,7 @@ type application struct {
 	config
 	logger *jsonlog.Logger
 	models data.Models
+	mailer mailer.Mailer
 }
 
 func main() {
@@ -54,6 +63,8 @@ func main() {
 	}
 
 	psqlPass := os.Getenv("POSTGRESS_PASSWORD")
+	smtpUser := os.Getenv("SMTP_USER")
+	smtpPass := os.Getenv("SMTP_PASSWORD")
 
 	// Declare an instance of the config struct
 	var cfg config
@@ -70,6 +81,12 @@ func main() {
 	flag.Float64Var(&cfg.limiter.rps, "limiter-rps", 2, "Rate limiter maximum requests per second")
 	flag.IntVar(&cfg.limiter.burst, "limiter-burst", 4, "Rate limiter maximum burst")
 	flag.BoolVar(&cfg.limiter.enabled, "limiter-enabled", true, "Enable rate limiter")
+
+	flag.StringVar(&cfg.smtp.host, "smtp-host", "smtp.mailtrap.io", "SMTP host")
+	flag.IntVar(&cfg.smtp.port, "smtp-port", 25, "SMTP port (25|465|587|2525)")
+	flag.StringVar(&cfg.smtp.username, "smtp-username", smtpUser, "SMTP username")
+	flag.StringVar(&cfg.smtp.password, "smtp-password", smtpPass, "SMTP password")
+	flag.StringVar(&cfg.smtp.sender, "smtp-sender", "Greenlight <no-reply@greenlight.net>", "SMTP sender")
 
 	flag.Parse()
 
@@ -95,6 +112,7 @@ func main() {
 		config: cfg,
 		logger: logger,
 		models: data.NewModels(db), // Add database models as application dependency
+		mailer: mailer.New(cfg.smtp.host, cfg.smtp.port, cfg.smtp.username, cfg.smtp.password, cfg.smtp.sender),
 	}
 
 	// Start the server
@@ -131,7 +149,7 @@ func openDB(cfg config) (*sql.DB, error) {
 	db.SetConnMaxIdleTime(duration)
 
 	// Create a context with a 5-second timeout deadline.
-	ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	// Use PingContext() to establish a new connection to the database, passing in the context
