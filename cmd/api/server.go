@@ -24,7 +24,7 @@ func (app *application) serve() error {
 	// The server listens on the port provided in the config struct and uses the ServeMux
 	// created above as the handler.
 	srv := &http.Server{
-		Addr: fmt.Sprintf(":%d", app.config.port),
+		Addr:    fmt.Sprintf(":%d", app.config.port),
 		Handler: app.routes(),
 		// Go enables persistent HTTP connections by default to reduce latency.
 		// By default, Go closes persistent connections after 3 minutes.
@@ -48,19 +48,19 @@ func (app *application) serve() error {
 	go func() {
 		// Create a quit channel which carries os.Signal.
 		// Use a buffered channel with size 1.
-		// A buffered channel is required because signal.Notify() does not wait for a receiver 
-		// to be available when sending a signal to the quit channel. If an unbuffered channel is used, 
+		// A buffered channel is required because signal.Notify() does not wait for a receiver
+		// to be available when sending a signal to the quit channel. If an unbuffered channel is used,
 		// the signal could be missed if the quit channel is not ready to receive at the exact moment the signal is sent.
 		// See the empty default case: https://github.com/golang/go/blob/bc7e4d9257693413d57ad467814ab71f1585a155/src/os/signal/signal.go#L243
 		quit := make(chan os.Signal, 1)
 
-		// Use signal.Notify() to listen for incoming SIGINT and SIGTERM signals and relay them to the 
+		// Use signal.Notify() to listen for incoming SIGINT and SIGTERM signals and relay them to the
 		// quit channel. Any other signals will not be caught by signal.Notify() and will retain their default
 		// behavior.
 		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 		// Read the signal from the quit channel. This code will block until a signal is received.
-		s := <- quit
+		s := <-quit
 
 		// Log a message to say that the signal has been caught.
 		app.logger.PrintInfo("shutting down server", map[string]string{
@@ -68,7 +68,7 @@ func (app *application) serve() error {
 		})
 
 		// Create a 5-second timeout context
-		ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
 		// Call Shutdown() on our server, passing in the 5-second timeout context.
@@ -76,25 +76,40 @@ func (app *application) serve() error {
 		// An error may happen if there is a problem of closing the listeners, or because
 		// the shutdown didn't complete before the 5-second context deadline is hit.
 		// The error is relayed to the shutdownError channel.
-		shutdownError <- srv.Shutdown(ctx)
+		err := srv.Shutdown(ctx)
+		if err != nil {
+			shutdownError <- err
+		}
+
+		// Log a message to say that we're waiting for any background routines to
+		// complete their tasks.
+		app.logger.PrintInfo("completing background tasks", map[string]string{
+			"addr": srv.Addr,
+		})
+
+		// Call Wait() to block until the WaitGroup counter is zero -- essentially blocking until
+		// the background routines have finished. Then we return nil on the shutdownError channel, to indicate that
+		// the shutdown completed without any issues.
+		app.wg.Wait()
+		shutdownError <- nil
 	}()
 
 	app.logger.PrintInfo("starting server", map[string]string{
 		"addr": srv.Addr,
-		"env": app.config.env,
+		"env":  app.config.env,
 	})
 
 	// Calling Shutdown() causes ListenAndServe to immediately return a http.ErrServerClosed error.
 	// This error indicates that the graceful shutdown has started (a good thing).
 	// We return any error that is NOT ErrServerClosed.
-	err := srv.ListenAndServe();
+	err := srv.ListenAndServe()
 	if !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 
 	// Otherwise, wait to receive the return value from Shutdown() on the shutdownError channel. If there is an error,
-	// we know there was a problem with the graceful shutdown. 
-	err = <- shutdownError
+	// we know there was a problem with the graceful shutdown.
+	err = <-shutdownError
 	if err != nil {
 		return err
 	}
