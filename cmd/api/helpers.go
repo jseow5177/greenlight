@@ -196,7 +196,13 @@ func (app *application) readInt(qs url.Values, key string, defaultValue int, v *
 // runBackground() accepts and executes an arbitrary function in a new goroutine.
 // It catches and logs any error as a result of a panic.
 func (app *application) runBackground(fn func()) {
+	// Increment the WaitGroup counter
+	app.wg.Add(1)
+
 	go func() {
+		// Use defer to decrement the WaitGroup
+		defer app.wg.Done()
+
 		// Recover from any panic in background routine else will crash application in panic.
 		defer func() {
 			if err := recover(); err != nil {
