@@ -44,7 +44,7 @@ func New(host string, port int, username, password, sender string) Mailer {
 func (m Mailer) Send(recipient, templateFile string, data interface{}) error {
 	// Use ParseFS() to parse the required template file from the embedded file system.
 	// The file system is rooted in the directory which contains the //go:embed directive.
-	// To retrieve a file in it, we need to start with path templates/
+	// Hence, to retrieve a file in it, we need to start with path templates/
 	tmpl, err := template.New("email").ParseFS(templateFS, "templates/"+templateFile)
 	if err != nil {
 		return err
